@@ -14,4 +14,30 @@ As of February 2017, I have taken the package to the level that is needed for my
 
 4. Delete an object
 
-Oracle PL/SQL tools for building an API to AWS S3 using HTTPS and the AWS4 signature
+AWS S3 has a lot more features than those present in this package. 
+
+# PL/SQL Code
+Because the authentication process was so very different than the original effort found in the Alexandria AMAZON_AWS_S3_PKG,
+I had the freedom to take advantage a few improved tools in PL/SQL such as apex_web_service.make_rest_request which means
+the package uses the Oracle Wallet and Password. There are techniques for proxying the HTTPS. This was not in our
+interest because we want the payload encrypted end-to-end. 
+
+# AWS S3 History
+The early days of S3 did not include regions. [S3 now includes regions](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region). Some regions permit unsecure HTTP. About 50% of the 
+regions require HTTPS and require the AWS4 signature process. I have not seen dates when AWS will obsolete the older
+authentication process and mandate HTTPS across the board. 
+
+We use AWS S3 in our commercial Oracle APEX applications. It became imparative to get ahead of the curve. Also we wanted
+to improve our security posture. All Trumping aside, the statement "all communications over the internet are encrypted" is
+only possible is we affirmatively encrypted the AWS S3 communication too. 
+
+AWS S3 feature set has grown over the recent years too. 
+
+# Other API
+AWS has mutliple application programming interfaces. There is a solid command line tool. Their web-based tools are good and
+improving. And Amazon provides API in other languages (just not PL/SQL). The decision in what to include is focused on what 
+would a database application need to do (and what does my company need). I would argue it is not necessary to build an API
+in PL/SQL that replicates 100% of what is possible. 
+
+# More Documentation
+A list of additional documents included:
