@@ -17,10 +17,14 @@ As of February 2017, I have taken the package to the level that is needed for my
 AWS S3 has a lot more features than those present in this package. 
 
 # PL/SQL Code
-Because the authentication process was so very different than the original effort found in the Alexandria AMAZON_AWS_S3_PKG,
+Because the authentication process was so very different than the original effort found in the [Alexandria AMAZON_AWS_S3_PKG](https://github.com/mortenbra/alexandria-plsql-utils),
 I had the freedom to take advantage a few improved tools in PL/SQL such as apex_web_service.make_rest_request which means
 the package uses the Oracle Wallet and Password. There are techniques for proxying the HTTPS. This was not in our
 interest because we want the payload encrypted end-to-end. 
+
+## Alexandria Library
+Yes, this package does belong in the Alexandria library. I think it needs a little more effort, debugging, and lovin' before
+it earns a spot there. 
 
 # AWS S3 History
 The early days of S3 did not include regions. [S3 now includes regions](http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region). Some regions permit unsecure HTTP. About 50% of the 
