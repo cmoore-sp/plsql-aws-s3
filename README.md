@@ -47,3 +47,5 @@ in PL/SQL that replicates 100% of what is possible.
 A list of additional documents included:
 
 1. [AWS Documentation Comments](docs/aws_docs.md)
+2. [Installation Notes](docs/install.md)
+3. Coding Guidelines
