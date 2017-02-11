@@ -48,4 +48,4 @@ A list of additional documents included:
 
 1. [AWS Documentation Comments](docs/aws_docs.md)
 2. [Installation Notes](docs/install.md)
-3. Coding Guidelines
+3. [Coding Guidelines](docs/code_standards.md)
