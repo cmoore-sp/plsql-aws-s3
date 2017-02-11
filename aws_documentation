@@ -1,0 +1,10 @@
+# AWS Documentation
+I have now spent three months reading and tearing apart the AWS S3 documentation. Writing these tools would have been
+easier if their documentation were (1) a bit more consistent (2) a bit more complete. Oh well. That's what trial-and-error
+is all about, right?
+
+In the package code, I make a lot of links back to the AWS documentation. On this page, I think I will offer my own
+take on the AWS documentation and the work flow. And some of the debugging tricks I had to use. If we improve this tool, we
+will break it (see trial-and-error).
+
+# 
