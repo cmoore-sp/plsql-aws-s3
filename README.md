@@ -46,4 +46,4 @@ in PL/SQL that replicates 100% of what is possible.
 # More Documentation
 A list of additional documents included:
 
-1. [AWS Documentation Comments](plsql-aws-s3/aws_documentation)
+1. [AWS Documentation Comments](doc/aws_documentation)
