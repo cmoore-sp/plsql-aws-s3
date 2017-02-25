@@ -290,6 +290,7 @@ begin
 	return l_iso_8601;
 end iso_8601;
 
+
 function canonical_request (
 	P_BUCKET						in varchar2,
 	P_HTTP_METHOD				in varchar2,
@@ -304,8 +305,8 @@ as
 	------------------------------------------------------------------------------
 	-- Function: 	Canonical Request
 	-- Author:		Christina Moore
-	-- Date:			07FEB2017
-	-- Version:		0.2
+	-- Date:			25FEB2017
+	-- Version:		0.3
 	--
 	-- Generates the Canonical Request and the corresponding URL
 	-- as documented by AWS.
@@ -334,9 +335,17 @@ as
 	-- Option 1 tends to be more robust. Option 2 tends to be shown with the
 	-- introductory examples.
 	--
+	-- 25FEB2017 cmoore - additional notes on the Options above. The us-east-1
+	-- also called us-standard doesn't follow the same canonical rules as other
+	-- newer buckets. What works for eu-central-1 does not work for us-east-1.
+	-- so I added an 'IF' statement. 
+	--
 	-- Revisions:
 	--		0.2		cmoore 11feb2017
 	--		left and right parens need to be escaped in the canonical request
+	--		0.3		cmoore 25feb2017
+	--			encountered error PermanentRedirect when using Option 1 above for eu-central-1. 
+	--			Changing to option 2			
 	--
 	------------------------------------------------------------------------------
 	l_canonical_request varchar2(4000);
@@ -368,10 +377,24 @@ begin
 
 	-- manage the canonical URI
 	if P_BUCKET is not null then
-		l_uri 		:= utl_url.escape('/' || P_BUCKET || P_CANONICAL_URI);
-		--l_host	:= 'host:' || P_BUCKET || '.s3.amazonaws.com';
-		l_host		:= 'host:s3.amazonaws.com';
-		P_URL			:= utl_url.escape('https://s3.amazonaws.com/' || P_BUCKET || P_CANONICAL_URI);
+		if g_aws_region in ('us-east-1') then
+			-- Option 1 
+			l_uri 		:= utl_url.escape('/' || P_BUCKET || P_CANONICAL_URI);
+			l_host		:= 'host:s3.amazonaws.com';
+			P_URL			:= utl_url.escape('https://s3.amazonaws.com/' || P_BUCKET || P_CANONICAL_URI);
+		else
+			-- Option 2
+			case 
+				when P_CANONICAL_URI is null then
+					l_uri 		:= '/';
+				when P_CANONICAL_URI = '/' then
+					l_uri 		:= '/';
+				else
+					l_uri 		:= utl_url.escape('/' || P_CANONICAL_URI);
+			end case;
+			l_host	:= 'host:' || P_BUCKET || '.s3.' || g_aws_region || '.amazonaws.com';
+			P_URL		:= utl_url.escape('https://' || P_BUCKET || '.s3.' ||  g_aws_region || '.amazonaws.com' || P_CANONICAL_URI);
+		end if; -- us-east-1 or not
 	else
 		l_uri 		:= utl_url.escape(P_CANONICAL_URI);
 		l_host		:= 'host:s3.amazonaws.com';
