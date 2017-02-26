@@ -345,7 +345,9 @@ as
 	--		left and right parens need to be escaped in the canonical request
 	--		0.3		cmoore 25feb2017
 	--			encountered error PermanentRedirect when using Option 1 above for eu-central-1. 
-	--			Changing to option 2			
+	--			Changing to option 2	
+	--		0.4		cmoore 26feb2017
+	--			with canonical URI, need to know if there is or is not a slash
 	--
 	------------------------------------------------------------------------------
 	l_canonical_request varchar2(4000);
@@ -390,7 +392,12 @@ begin
 				when P_CANONICAL_URI = '/' then
 					l_uri 		:= '/';
 				else
-					l_uri 		:= utl_url.escape('/' || P_CANONICAL_URI);
+					if substr(P_CANONICAL_URI,1,1) = '/' then
+						l_uri 		:= utl_url.escape(P_CANONICAL_URI);
+					else
+						l_uri 		:= utl_url.escape('/' || P_CANONICAL_URI);
+					end if; -- does canonical URI start with slash, add one if no
+					
 			end case;
 			l_host	:= 'host:' || P_BUCKET || '.s3.' || g_aws_region || '.amazonaws.com';
 			P_URL		:= utl_url.escape('https://' || P_BUCKET || '.s3.' ||  g_aws_region || '.amazonaws.com' || P_CANONICAL_URI);
