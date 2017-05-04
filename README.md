@@ -16,6 +16,12 @@ As of February 2017, I have taken the package to the level that is needed for my
 
 AWS S3 has a lot more features than those present in this package. 
 
+# Revisions
+May 2018 added\fixed the following:
+* Escaping ampersand in filenames (download URL was failing if filename had ampersand)
+* Added function to fetch a blob from an HTTPS site
+* Added function to get an AWS S3 object via HTTPS
+
 # PL/SQL Code
 Because the authentication process was so very different than the original effort found in the [Alexandria AMAZON_AWS_S3_PKG](https://github.com/mortenbra/alexandria-plsql-utils),
 I had the freedom to take advantage a few improved tools in PL/SQL such as apex_web_service.make_rest_request which means
