@@ -16,11 +16,16 @@ as
 --
 -- Date: February 2017
 -- Author: Christina Moore
+--
+-- Modifications:
+--		cmoore 03MAY 2017
+--				escape ampersand in S3 filenames
+--				Added function to download BLOB from a URL via HTTPS
+--				Added function to get Object Blob from AWS via HTTPS
 
 -----------------------------------------------------------------------------------------
 
 -- the following global settings will need to be changed for your environment
-	
   g_aws_id                 	varchar2(20) := '#####YourID####'; -- AWS access key ID
   g_aws_key                	varchar2(40) := '#####YourSecretKey######'; -- AWS secret key
 	g_wallet_path							constant varchar2(100) := 'file:d:\app\oracle\admin\orcl\wallet\';
@@ -56,6 +61,31 @@ as
 --					Private Functions and Procedures AWS4 Signature and HTTPS Request
 --
 --------------------------------------------------------------------------------
+function aws4_escape (
+	P_URL					in varchar2
+	) return varchar2
+	------------------------------------------------------------------------------
+	-- Function: 	AWS4 Escape
+	-- Author:		Christina Moore
+	-- Date:			03MAY2017
+	-- Version:		0.1
+	--
+	-- Returns		the AWS4 escape value
+	-- 	
+	--
+	-- Revisions:
+	--
+	------------------------------------------------------------------------------	
+as
+	l_return			varchar2(1000);
+begin
+	l_return 	:= P_URL;
+	
+	l_return	:= utl_url.escape(l_return);
+	l_return	:= replace(l_return, amp, '%26');
+	return l_return;
+end aws4_escape;
+
 procedure validate_http_method (
 	P_HTTP_METHOD 	in varchar2,
 	P_PROCEDURE			in varchar2
@@ -348,6 +378,8 @@ as
 	--			Changing to option 2	
 	--		0.4		cmoore 26feb2017
 	--			with canonical URI, need to know if there is or is not a slash
+	--		0.5	cmoore 03MAY2017
+	--			using local escape URL function
 	--
 	------------------------------------------------------------------------------
 	l_canonical_request varchar2(4000);
@@ -362,7 +394,7 @@ as
 	l_request_hashed		varchar2(100);
 begin
 	validate_http_method(P_HTTP_METHOD,'canonical_request'); 
-	l_query_string 			:= utl_url.escape(P_QUERY_STRING);
+	l_query_string 			:= aws4_escape(P_QUERY_STRING);
 	
 	-- Strip the ? in case someone adds the question-mark
 	if substr(P_QUERY_STRING,1,1) = '?' then
@@ -381,9 +413,9 @@ begin
 	if P_BUCKET is not null then
 		if g_aws_region in ('us-east-1') then
 			-- Option 1 
-			l_uri 		:= utl_url.escape('/' || P_BUCKET || P_CANONICAL_URI);
 			l_host		:= 'host:s3.amazonaws.com';
-			P_URL			:= utl_url.escape('https://s3.amazonaws.com/' || P_BUCKET || P_CANONICAL_URI);
+			l_uri 		:= aws4_escape('/' || P_BUCKET || P_CANONICAL_URI);
+			P_URL			:= aws4_escape('https://s3.amazonaws.com/' || P_BUCKET || P_CANONICAL_URI);
 		else
 			-- Option 2
 			case 
@@ -393,19 +425,19 @@ begin
 					l_uri 		:= '/';
 				else
 					if substr(P_CANONICAL_URI,1,1) = '/' then
-						l_uri 		:= utl_url.escape(P_CANONICAL_URI);
+						l_uri 		:= aws4_escape(P_CANONICAL_URI);
 					else
-						l_uri 		:= utl_url.escape('/' || P_CANONICAL_URI);
+						l_uri 		:= aws4_escape('/' || P_CANONICAL_URI);
 					end if; -- does canonical URI start with slash, add one if no
 					
 			end case;
 			l_host	:= 'host:' || P_BUCKET || '.s3.' || g_aws_region || '.amazonaws.com';
-			P_URL		:= utl_url.escape('https://' || P_BUCKET || '.s3.' ||  g_aws_region || '.amazonaws.com' || P_CANONICAL_URI);
+			P_URL		:= aws4_escape('https://' || P_BUCKET || '.s3.' ||  g_aws_region || '.amazonaws.com' || P_CANONICAL_URI);
 		end if; -- us-east-1 or not
 	else
-		l_uri 		:= utl_url.escape(P_CANONICAL_URI);
 		l_host		:= 'host:s3.amazonaws.com';
-		P_URL			:= utl_url.escape('https://s3.amazonaws.com');
+		l_uri 		:= aws4_escape(P_CANONICAL_URI);
+		P_URL			:= aws4_escape('https://s3.amazonaws.com');
 	end if; -- p_bucket null?
 	
 	l_header 		:= l_host || lf || 
@@ -664,6 +696,72 @@ begin
   return l_returnvalue;
 end check_for_redirect;
 
+function get_blob_from_https (
+	P_URL 					in varchar2,
+	P_AUTH					in varchar2 default null,
+	P_HASH					in varchar2 default null,
+	P_TIME_STRING		in varchar2 default null
+	) return blob
+as
+	------------------------------------------------------------------------------
+	-- Function: 	Prep AWS Data
+	-- Author:		MBR \ Christina Moore
+	-- Date:			01JAN 2008 \ 04FEB2017
+	-- Version:		0.1
+	--
+	-- Returns		a blob from a HTTPS URL
+	-- Parameters
+	--	URL - url, must be https
+	-- 	AUTH - used for header values
+	-- 	HASH - used for header values
+	-- 	Time String - used for header values
+	--
+	-- 	
+	--
+	-- Revisions:
+	--
+	------------------------------------------------------------------------------
+  l_http_request   			utl_http.req;
+  l_http_response  			utl_http.resp;
+  l_raw            			raw(32767);
+  l_returnvalue    			blob;
+
+begin
+  dbms_lob.createtemporary (l_returnvalue, false);
+	utl_http.set_wallet(g_wallet_path, g_wallet_pwd);
+  l_http_request  := utl_http.begin_request (P_URL);
+	if P_AUTH is not null then
+		utl_http.set_header(l_http_request, 'Authorization', P_AUTH);
+	end if; -- P_AUTH is not null
+	if P_HASH is not null then
+			utl_http.set_header(l_http_request, 'x-amz-content-sha256', P_HASH);
+	end if; -- P_AUTH is not null	
+	if P_TIME_STRING is not null then
+			utl_http.set_header(l_http_request, 'x-amz-date', p_TIME_STRING);
+	end if; -- P_AUTH is not null	
+
+  l_http_response := utl_http.get_response (l_http_request);
+
+  begin
+    loop
+      utl_http.read_raw(l_http_response, l_raw, 32767);
+      dbms_lob.writeappend (l_returnvalue, utl_raw.length(l_raw), l_raw);
+    end loop;
+  exception
+    when utl_http.end_of_body then
+      utl_http.end_response(l_http_response);
+  end;
+
+  return l_returnvalue;
+
+exception
+  when others then
+    utl_http.end_response (l_http_response);
+    dbms_lob.freetemporary (l_returnvalue);
+    raise;
+
+end get_blob_from_https;
+
 --------------------------------------------------------------------------------
 -- 													S E C T I O N		
 --
@@ -917,6 +1015,187 @@ begin
 
 end get_bucket_tab;
 
+
+function get_object_blob (
+	P_BUCKET					in varchar2,
+	P_CANONICAL_URI		in varchar2
+	) return blob
+	------------------------------------------------------------------------------
+	-- Function: 	Get Object BLOB
+	-- Author:		Christina Moore
+	-- Date:			03MAY2017
+	-- Version:		0.1
+	--
+	-- Returns a BLOB 
+	-- Parameters
+	-- 	Bucket - bucket name, lower case, exact as in S3
+	--  Canonical URI - filename for the AWS S3 object
+	-- 
+	-- 
+	-- Revisions:
+	--
+	------------------------------------------------------------------------------
+as
+	------------------------------------------------------------------------------
+	--
+	--	Sample Code for Calling Function
+	--
+	------------------------------------------------------------------------------
+/*
+
+*/
+
+	l_date							date;
+	l_date_string				varchar2(50);
+	l_time_string				varchar2(50);
+	l_http_method				varchar2(10);
+	l_query_string			varchar2(4000);
+	l_query_string_root	varchar2(4000);
+	l_canonical_uri			varchar2(1000) ;
+	
+	l_more							boolean := true;
+  l_count             pls_integer := 0;
+	l_max_keys					number := 100000; -- safety valve on loop
+	l_signature					varchar2(4000);	
+
+	l_canonical_request	varchar2(4000); -- used for debugging
+	l_url								varchar2(4000);
+	l_payload_hash			varchar2(100);
+
+	l_clob							clob;
+	l_return						blob;
+	l_xml               xmltype;
+  l_object_list     	t_object_list;
+	l_last_key					varchar2(1000);
+	
+	l_auth							varchar2(2000);
+	
+	-- notes on debugging
+	-- 1. this calls the Alexandria DEBUG_PKG
+	-- 2. You'll need to go into that package body and set m_debugging := true
+	-- 3. You'll need to compile the Alexandria DEBUG_PKG Body
+	-- 4. You'll then also need to turn the local debug option to true
+	l_debug							boolean := false;
+
+/* sample procedure call
+declare
+	l_blob	blob;
+	l_clob		clob;
+	l_url 	varchar2(1000);
+	l_key		varchar2(1000);
+begin
+for x in (
+	select 
+		doc_pk,
+		name,
+		doc_mimetype,
+		doc_filename,
+		s3_bucket,
+		s3_filename
+	from tg_document
+	where doc_pk = 78
+) loop
+	
+	if substr(x.s3_filename, 1, 1) <> '/' then
+		l_key := '/' || x.s3_filename;
+	else
+		l_key := x.s3_filename;
+	end if; -- start with slash?
+	
+	dbms_output.put_line(l_key);	
+	
+	l_url := aws4_s3_pkg.get_object_url (
+		P_BUCKET 				=> x.s3_bucket,
+		P_CANONICAL_URI	=> l_key,
+		P_DATE					=> localtimestamp
+		);
+	dbms_output.put_line(l_url);
+	l_blob := aws4_s3_pkg.get_object_blob (
+		P_BUCKET 				=> x.s3_bucket,
+		P_CANONICAL_URI	=> l_key);
+	insert into aws_blob (
+		aws_blob,
+		created_date,
+		blob_mimetype,
+		blob_filename
+	) values (
+		l_blob,
+		sysdate,
+		x.doc_mimetype,
+		x.doc_filename
+	);
+end loop;
+end;
+*/
+begin
+	l_date							:= localtimestamp;
+	l_date_string 			:= to_char(l_date, 'YYYYMMDD');
+	l_time_string 			:= ISO_8601(l_date);
+	l_http_method				:= 'GET';
+	l_payload_hash 			:= g_null_hash;
+	l_canonical_uri			:= P_CANONICAL_URI;
+
+	l_signature := prep_aws_data (
+		P_BUCKET							=> P_BUCKET,
+		P_HTTP_METHOD					=> l_http_method,
+		P_CANONICAL_URI				=> l_canonical_uri,
+		P_QUERY_STRING				=> l_query_string,
+		P_DATE								=> l_date,
+		P_CANONICAL_REQUEST		=> l_canonical_request,
+		P_PAYLOAD_HASH				=> l_payload_hash,
+		P_URL									=> l_url
+		);
+
+	if l_debug then
+		debug_pkg.print ('Canonical Request:');
+		debug_pkg.print (l_canonical_request);
+		debug_pkg.print ('URL:');
+		debug_pkg.print (l_url);
+	end if; -- l_debug
+
+	l_auth := g_aws4_auth  ||
+			' Credential=' || g_aws_id || '/' || l_date_string || '/' || g_aws_region || '/s3/aws4_request,' ||
+			' SignedHeaders=host;x-amz-content-sha256;x-amz-date,' ||
+			' Signature=' || l_signature ;			
+	apex_web_service.g_request_headers(1).name  := 'Authorization';
+	apex_web_service.g_request_headers(1).value := l_auth;
+
+	apex_web_service.g_request_headers(2).name 	:= 'x-amz-content-sha256';
+	apex_web_service.g_request_headers(2).value := l_payload_hash ;
+
+	apex_web_service.g_request_headers(3).name 	:= 'x-amz-date';
+	apex_web_service.g_request_headers(3).value := l_time_string ;
+
+	l_clob 	:= apex_web_service.make_rest_request(
+			p_url               => l_url,
+			p_http_method       => l_http_method,
+			p_wallet_path				=> g_wallet_path,
+			p_wallet_pwd				=> g_wallet_pwd
+			);
+
+	if (l_clob is not null) and (dbms_lob.getlength(l_clob) > 0) then
+		l_xml := xmltype (l_clob);
+		check_for_errors (l_xml);
+	end if; -- AWS clob is not null
+
+	exception when others then
+		declare
+			l_error_code		PLS_INTEGER := sqlcode;
+		begin
+			case l_error_code
+				when -31011 then
+					l_return := get_blob_from_https(
+						P_URL 				=> l_url,
+						P_AUTH				=> l_auth,
+						P_HASH				=> l_payload_hash,
+						P_TIME_STRING	=> l_time_string
+						);
+					return l_return;	
+			else raise;
+			end case;
+		end;
+end get_object_blob;
+
 procedure get_object_list (
 	P_BUCKET			in varchar2,
 	P_PREFIX			in varchar2,
@@ -1123,6 +1402,8 @@ function get_object_url (
 	-- 
 	--
 	-- Revisions:
+	--	0.1		cmoore 03MAY2017
+	--		using local URL escape function to accommodate the ampersand
 	--
 	------------------------------------------------------------------------------
 as
@@ -1142,7 +1423,7 @@ as
 begin
 	if P_BUCKET is null then
 		raise_application_error (-20000,
-			'Bucket Name is null in aws4_s3_pkg.presign_canonical_request'); 
+			'Bucket Name is null in aws4_s3_pkg.get_object_url'); 
 	else
 		l_bucket := lower(P_BUCKET);
 	end if;
@@ -1155,8 +1436,9 @@ begin
 	l_url						:= 'https://s3.amazonaws.com/' || l_bucket;
 	
 	-- manage the canonical URI
-	l_url						:= utl_url.escape(l_url || P_CANONICAL_URI);
-	l_req_canonical := utl_url.escape('/' || P_BUCKET || P_CANONICAL_URI);
+	-- cmoore 03MAY2017 - Oracle Escape does not escape the ampersand
+	l_url						:= aws4_escape(l_url || P_CANONICAL_URI);
+	l_req_canonical := aws4_escape('/' || P_BUCKET || P_CANONICAL_URI);
 	
 	-- manage the algorithm
 	l_algo					:= 'X-Amz-Algorithm=AWS4-HMAC-SHA256&' ||
@@ -1299,7 +1581,7 @@ end;
 	-- 2. You'll need to go into that package body and set m_debugging := true
 	-- 3. You'll need to compile the Alexandria DEBUG_PKG Body
 	-- 4. You'll then also need to turn the local debug option to true
-	l_debug							boolean := true;
+	l_debug							boolean := false;
 	
 begin
 	l_date							:= localtimestamp;
@@ -1331,7 +1613,7 @@ begin
 		debug_pkg.print ('Canonical Request', l_canonical_request );
 		debug_pkg.print ('URL', l_url);
 	end if; -- l_debug
-		
+	
 	apex_web_service.g_request_headers(1).name  := 'Authorization';
 	apex_web_service.g_request_headers(1).value := g_aws4_auth  ||
 			' Credential=' || g_aws_id || '/' || l_date_string || '/' || g_aws_region || '/s3/aws4_request,' ||
@@ -1350,13 +1632,13 @@ begin
 	apex_web_service.g_request_headers(5).name 	:= 'Content-Length';
 	apex_web_service.g_request_headers(5).value := l_content_length;
 
-		l_clob 	:= apex_web_service.make_rest_request(
-				p_url               => l_url,
-				p_http_method       => l_http_method,
-				p_wallet_path				=> g_wallet_path,
-				p_wallet_pwd				=> g_wallet_pwd,
-				p_body_blob					=> P_BLOB
-				);
+	l_clob 	:= apex_web_service.make_rest_request(
+			p_url               => l_url,
+			p_http_method       => l_http_method,
+			p_wallet_path				=> g_wallet_path,
+			p_wallet_pwd				=> g_wallet_pwd,
+			p_body_blob					=> P_BLOB
+			);
 
 end put_object;
 
