@@ -84,6 +84,11 @@ function get_bucket_list
 function get_bucket_tab 
 	return t_bucket_tab pipelined;
 
+function get_object_blob (
+	P_BUCKET					in varchar2,
+	P_CANONICAL_URI		in varchar2
+	) return blob;
+	
 procedure get_object_list (
 	P_BUCKET			in varchar2,
 	P_PREFIX			in varchar2,
