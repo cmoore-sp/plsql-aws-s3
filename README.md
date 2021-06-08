@@ -3,6 +3,8 @@ I did nothing to maintain the PL/SQL code for the AWS S3 interface at my GitHub 
 I am not going to reconcile the old code with new. Instead, the code we’ve run in production is being posted. It is backwards compatible. 
 Please take from it as you will and enjoy.
 
+Take a look at the associated blog entry: https://Storm-petrel.com/2021/06/08/aws-s3-oracle/
+
 
 # Oracle PL/SQL AWS S3 with HTTPS
 Please help me improve this API with Amazon Web Services (AWS) for S3 (Simple Storage Service). AWS has upgraded their 
