@@ -1,3 +1,9 @@
+# June 2021
+I did nothing to maintain the PL/SQL code for the AWS S3 interface at my GitHub site for the last years. I know we had run into issues with bugs and such. The most common error is that our Oracle code and AWS disagreed about the time. Often it was the time zone offset from UTC. 
+I am not going to reconcile the old code with new. Instead, the code we’ve run in production is being posted. It is backwards compatible. 
+Please take from it as you will and enjoy.
+
+
 # Oracle PL/SQL AWS S3 with HTTPS
 Please help me improve this API with Amazon Web Services (AWS) for S3 (Simple Storage Service). AWS has upgraded their 
 S3 services and the API to include an encrypted HTTP interface. The very good work done by the team that included
