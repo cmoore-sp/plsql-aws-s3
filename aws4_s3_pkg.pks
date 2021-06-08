@@ -1,4 +1,4 @@
-create or replace package aws4_s3_pkg as
+CREATE OR REPLACE EDITIONABLE PACKAGE "AWS4_S3_PKG" as
 
   type t_bucket is record (
     bucket_name varchar2(255),
@@ -72,11 +72,32 @@ create or replace package aws4_s3_pkg as
 --
 --						Functions and Procedures used for HTTPS auth and call
 --						These should be kept alphabetized
+--
+-- Modifications:
+--		2018-OCT-22 cmoore, added AWS4_SHA256 to publicly available functions
 --------------------------------------------------------------------------------
+	
+function aws4_sha256 (
+	P_STRING			varchar2
+	) return varchar2;
+	
+function aws4_sha256 (
+	P_BLOB			in blob
+	) return varchar2;
+	
+function ISO_8601 (
+		P_DATE		in timestamp,
+		P_TIMEZONE	in varchar2 default 'UTC'
+		) return varchar2;
+
 procedure delete_object (
 	P_BUCKET						in varchar2,
 	P_OBJECT						in varchar2
 	);
+
+function bucket_head (
+	P_BUCKET			in varchar2
+	) return boolean;
 	
 function get_bucket_list 
 	return t_bucket_list;
@@ -87,6 +108,10 @@ function get_bucket_tab
 function get_object_blob (
 	P_BUCKET					in varchar2,
 	P_CANONICAL_URI		in varchar2
+	) return blob;
+	
+function get_object_blob2 (
+	P_URL							in varchar2
 	) return blob;
 	
 procedure get_object_list (
@@ -102,6 +127,16 @@ function get_object_url (
 	P_DATE							in date,
 	P_EXPIRY						in number default 3600
 	) return varchar2;
+
+procedure object_head (
+	P_BUCKET					in varchar2,
+	P_PREFIX					in varchar2,
+	P_OBJECT    			in varchar2,
+  P_ETAG        		out varchar2,
+  P_LENGTH      		out number,
+  P_CREATE_DATE 		out date,
+  P_MODIFIED_DATE  	out date
+);
 
 procedure put_object (
 	P_BUCKET				in varchar2,
